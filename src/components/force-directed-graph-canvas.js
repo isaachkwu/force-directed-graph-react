@@ -97,7 +97,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         const onClickGraph = (event) => {
             const x = transform.invertX(event.x),
                 y = transform.invertY(event.y);
-            console.log(bnSearch(x - nodeRadius, x + nodeRadius, 0, simedNodes.length - 1, simedNodes, isInXRange))
+            // console.log(bnSearch(x - nodeRadius, x + nodeRadius, 0, simedNodes.length - 1, simedNodes, isInXRange))
             for(const node of simedNodes) {
                 const dx = Math.abs(node.x - x), 
                     dy = Math.abs(node.y - y),
@@ -126,7 +126,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
             }
         } 
         const onClickNode = (key) => {
-            // console.log(key)
+            console.log(key)
         }
 
         // hanging events in the canvas
