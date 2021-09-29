@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import d3 from 'd3';
+import * as d3 from 'd3';
 
 const ForceDirectedGraphSvg = () => {
     const svgRef = useRef(null);
