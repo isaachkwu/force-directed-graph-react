@@ -50,7 +50,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
             setIsCanvasReady(true);
             simedNodes = data.nodes;
             // sort by x for faster onClick 
-            simedNodes.sort((a,b) => (a.x - b.x));
+            simedNodes.sort((a, b) => (a.x - b.x));
             // console.log(simedNodes);
             simedLinks = data.links;
             // console.log(simedLinks)
@@ -92,7 +92,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
             .scaleExtent([1 / 10, 8])
             .on("zoom", zoomed)
 
-        
+
         // onClick events
         const isInXRange = (start, end, target) => {
             // console.log(start, end, target)
@@ -101,36 +101,52 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         const onClickGraph = (event) => {
             const x = transform.invertX(event.x),
                 y = transform.invertY(event.y);
-            // console.log(bnSearch(x - nodeRadius, x + nodeRadius, 0, simedNodes.length - 1, simedNodes, isInXRange))
-            for(const node of simedNodes) {
-                const dx = Math.abs(node.x - x), 
-                    dy = Math.abs(node.y - y),
-                    d = Math.sqrt(dx * dx + dy + dy);
-                if (d <= nodeRadius) {
-                    onClickNode(node.id);
-                    break;
+            let [validXStartIndex, validXEndIndex] = bnSearch(x - nodeRadius, x + nodeRadius, 0, simedNodes.length - 1, simedNodes, isInXRange)
+            if (validXStartIndex && validXEndIndex) {
+                let validNodeIndex = null, dx, dy, d, tempNode;
+                while (validXStartIndex <= validXEndIndex && validNodeIndex === null) {
+                    tempNode = simedNodes[validXStartIndex];
+                    dx = Math.abs(tempNode.x - x);
+                    dy = Math.abs(tempNode.y - y);
+                    d = Math.sqrt(dx * dx + dy * dy);
+                    if (d <= nodeRadius) {
+                        validNodeIndex = validXStartIndex;
+                    }
+                    validXStartIndex++;
+                }
+                if (validNodeIndex !== null) {
+                    console.log(`Node id: ${simedNodes[validNodeIndex].id} index: ${validNodeIndex}`)
                 }
             }
         }
-        // const bnSearch = (targetSt, targetEd, st, ed, array, compareFn) => {
-        //     // FIXME: a have bug
-        //     if (st > ed) {
-        //         return NaN
-        //     }
-        //     const mid = Math.floor((ed + st) / 2);
-        //     // console.log(`mid: ${mid}`)
-        //     if (compareFn(targetSt, targetEd, array[mid].x)) {
-        //         return mid
-        //     } else {
-        //         if(targetSt > array[mid].x) {
-        //             return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
-        //         } else {
-        //             return bnSearch(targetSt, targetEd, st, mid - 1, array, compareFn);
-        //         }
-        //     }
-        // } 
+        const bnSearch = (targetSt, targetEd, st, ed, array, compareFn) => {
+            if (st > ed) {
+                return [null, null]
+            }
+            const mid = Math.floor((ed + st) / 2);
+            if (compareFn(targetSt, targetEd, array[mid].x)) {
+                // valid X is between validStIndex and validEdIndex
+                for (var i = mid; compareFn(targetSt, targetEd, array[i].x); --i) { }
+                let validStIndex = i + 1;
+                for (i = mid; compareFn(targetSt, targetEd, array[i].x); ++i) { }
+                let validEdIndex = i - 1;
+                return [validStIndex, validEdIndex]
+                // find node with valid y from valid x nodes
+                // let validNodeIndex = null, dx, dy, d, tempNode;
+                // while(validStIndex <= validEdIndex || validNodeIndex === null) {
+                //     tempNode = array[validStIndex];
+                //     dx = Math.abs(tempNode.x - );
+                // }
+            } else {
+                if (targetSt > array[mid].x) {
+                    return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
+                } else {
+                    return bnSearch(targetSt, targetEd, st, mid - 1, array, compareFn);
+                }
+            }
+        }
         const onClickNode = (key) => {
-            console.log(key)
+            // console.log(key)
         }
 
         // hanging events in the canvas
@@ -148,14 +164,14 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
         }
-        <canvas 
-                ref={canvasRef} 
-                width={width} 
-                height={height}
-                style={{
-                    display: isCanvasReady ? 'initial' : 'none'
-                }}
-            />
+        <canvas
+            ref={canvasRef}
+            width={width}
+            height={height}
+            style={{
+                display: isCanvasReady ? 'initial' : 'none'
+            }}
+        />
     </>
 }
 
