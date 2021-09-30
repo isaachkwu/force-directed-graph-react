@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 
 onmessage = (event) => {
-  console.log(event.data);
+  // console.log(event.data);
   let nodes = event.data.nodes,
       links = event.data.links,
       width = event.data.width,

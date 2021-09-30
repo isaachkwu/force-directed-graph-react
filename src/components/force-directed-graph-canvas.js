@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 // workers
@@ -10,6 +10,8 @@ import useWindowDimension from '../hooks/useWindowDimension';
 const ForceDirectedGraphCanvas = ({ nodes, links }) => {
     const canvasRef = useRef(null);
     const { width, height } = useWindowDimension();
+    const [loadingProgress, setLoadingProgress] = useState(0)
+    const [isCanvasReady, setIsCanvasReady] = useState(false)
 
     useEffect(() => {
         const simWorker = new SimWorker();
@@ -32,7 +34,8 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
 
         // simulation is ongoing
         const ticked = (data) => {
-            console.log(`loading... ${data.progress}`);
+            setIsCanvasReady(false);
+            setLoadingProgress(data.progress)
         }
 
         // radius of node
@@ -44,12 +47,13 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
 
         // simulation is done, time to draw
         const ended = (data) => {
+            setIsCanvasReady(true);
             simedNodes = data.nodes;
             // sort by x for faster onClick 
             simedNodes.sort((a,b) => (a.x - b.x));
-            console.log(simedNodes);
-            // console.log(simedNodes)
+            // console.log(simedNodes);
             simedLinks = data.links;
+            // console.log(simedLinks)
             draw();
         }
         const draw = () => {
@@ -81,7 +85,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         // zoom events
         const zoomed = (event) => {
             transform = event.transform;
-            console.log(transform)
+            // console.log(transform)
             draw();
         }
         const zoom = d3.zoom()
@@ -108,23 +112,23 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
                 }
             }
         }
-        const bnSearch = (targetSt, targetEd, st, ed, array, compareFn) => {
-            // FIXME: a have bug
-            if (st > ed) {
-                return NaN
-            }
-            const mid = Math.floor((ed + st) / 2);
-            // console.log(`mid: ${mid}`)
-            if (compareFn(targetSt, targetEd, array[mid].x)) {
-                return mid
-            } else {
-                if(targetSt > array[mid].x) {
-                    return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
-                } else {
-                    return bnSearch(targetSt, targetEd, st, mid - 1, array, compareFn);
-                }
-            }
-        } 
+        // const bnSearch = (targetSt, targetEd, st, ed, array, compareFn) => {
+        //     // FIXME: a have bug
+        //     if (st > ed) {
+        //         return NaN
+        //     }
+        //     const mid = Math.floor((ed + st) / 2);
+        //     // console.log(`mid: ${mid}`)
+        //     if (compareFn(targetSt, targetEd, array[mid].x)) {
+        //         return mid
+        //     } else {
+        //         if(targetSt > array[mid].x) {
+        //             return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
+        //         } else {
+        //             return bnSearch(targetSt, targetEd, st, mid - 1, array, compareFn);
+        //         }
+        //     }
+        // } 
         const onClickNode = (key) => {
             console.log(key)
         }
@@ -141,7 +145,17 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         }
     }, [height, links, nodes, width]);
     return <>
-        <canvas ref={canvasRef} width={width} height={height}/>
+        {!isCanvasReady &&
+            <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
+        }
+        <canvas 
+                ref={canvasRef} 
+                width={width} 
+                height={height}
+                style={{
+                    display: isCanvasReady ? 'initial' : 'none'
+                }}
+            />
     </>
 }
 
