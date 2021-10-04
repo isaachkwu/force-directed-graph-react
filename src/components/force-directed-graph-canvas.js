@@ -7,30 +7,15 @@ import SimWorker from '../workers/force-simulation.worker'
 // hooks
 import useWindowDimension from '../hooks/useWindowDimension';
 
-const ForceDirectedGraphCanvas = ({ nodes, links }) => {
+const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
     const canvasRef = useRef(null);
     const { width, height } = useWindowDimension();
     const [loadingProgress, setLoadingProgress] = useState(0)
     const [isCanvasReady, setIsCanvasReady] = useState(false)
 
     useEffect(() => {
-        const simWorker = new SimWorker();
         const canvasElement = canvasRef.current;
         const context = canvasElement.getContext("2d");
-
-        // worker start simulation
-        simWorker.postMessage({
-            nodes, links, width, height
-        });
-
-        // worker receive message
-        simWorker.onmessage = event => {
-            switch (event.data.type) {
-                case "tick": return ticked(event.data);
-                case "end": return ended(event.data);
-                default: return
-            }
-        }
 
         // simulation is ongoing
         const ticked = (data) => {
@@ -49,14 +34,15 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
         const ended = (data) => {
             setIsCanvasReady(true);
             simedNodes = data.nodes;
-            // sort by x for faster onClick 
+            // sort by x for faster onClick
             simedNodes.sort((a, b) => (a.x - b.x));
-            // console.log(simedNodes);
             simedLinks = data.links;
-            // console.log(simedLinks)
+            console.log(simedLinks)
             draw();
         }
         const draw = () => {
+            // console.log(simedNodes);
+            // console.log(simedLinks)
             context.clearRect(0, 0, width, height);
             context.save();
             context.translate(transform.x, transform.y);
@@ -89,7 +75,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
             draw();
         }
         const zoom = d3.zoom()
-            .scaleExtent([1 / 10, 8])
+            .scaleExtent([1 / 100, 8])
             .on("zoom", zoomed)
 
 
@@ -116,6 +102,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
                 }
                 if (validNodeIndex !== null) {
                     console.log(`Node id: ${simedNodes[validNodeIndex].id} index: ${validNodeIndex}`)
+                    onClickNode(simedNodes[validNodeIndex].id)
                 }
             }
         }
@@ -131,12 +118,6 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
                 for (i = mid; compareFn(targetSt, targetEd, array[i].x); ++i) { }
                 let validEdIndex = i - 1;
                 return [validStIndex, validEdIndex]
-                // find node with valid y from valid x nodes
-                // let validNodeIndex = null, dx, dy, d, tempNode;
-                // while(validStIndex <= validEdIndex || validNodeIndex === null) {
-                //     tempNode = array[validStIndex];
-                //     dx = Math.abs(tempNode.x - );
-                // }
             } else {
                 if (targetSt > array[mid].x) {
                     return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
@@ -145,8 +126,27 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
                 }
             }
         }
-        const onClickNode = (key) => {
-            // console.log(key)
+        const onClickNode = (id) => {
+            console.log(`onClickNode invoked. id = ${id}`)
+        }
+
+        // worker start simulation
+        if(!isSimulated) {
+            const simWorker = new SimWorker();
+            simWorker.postMessage({
+                nodes, links, width, height
+            });
+
+            // worker receive message
+            simWorker.onmessage = event => {
+                switch (event.data.type) {
+                    case "tick": return ticked(event.data);
+                    case "end": return ended(event.data);
+                    default: return
+                }
+            }
+        } else {
+            ended({nodes,links})
         }
 
         // hanging events in the canvas
@@ -159,7 +159,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links }) => {
             // clean up
             d3.select(canvasElement).selectAll("*").remove();
         }
-    }, [height, links, nodes, width]);
+    }, [height, isSimulated, links, nodes, width]);
     return <>
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
