@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import defaultColor from '../data/colors-40.json'
 
 // workers
 import SimWorker from '../workers/force-simulation.worker'
@@ -7,7 +8,7 @@ import SimWorker from '../workers/force-simulation.worker'
 // hooks
 import useWindowDimension from '../hooks/useWindowDimension';
 
-const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
+const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false, colors }) => {
     const canvasRef = useRef(null);
     const { width, height } = useWindowDimension();
     const [loadingProgress, setLoadingProgress] = useState(0)
@@ -24,7 +25,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
         }
 
         // radius of node
-        const nodeRadius = 3;
+        const nodeRadius = 7;
         // transform object for zoom
         let transform = d3.zoomIdentity;
         // simulated nodes, and links, with x, y, and id
@@ -37,6 +38,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
             // sort by x for faster onClick
             simedNodes.sort((a, b) => (a.x - b.x));
             simedLinks = data.links;
+            console.log(simedNodes)
             console.log(simedLinks)
             draw();
         }
@@ -55,8 +57,6 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
 
             context.beginPath();
             simedNodes.forEach(drawNode);
-            context.fill();
-
             context.restore()
         }
         function drawLink(d) {
@@ -64,8 +64,48 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
             context.lineTo(d.target.x, d.target.y);
         }
         function drawNode(d) {
-            context.moveTo(d.x + 3, d.y);
-            context.arc(d.x, d.y, nodeRadius, 0, 2 * Math.PI);
+            context.beginPath();
+            if (d.pie) {
+                // FIXME: not fully implemented
+                const arc = d3.arc()
+                    .outerRadius(nodeRadius)
+                    .innerRadius(0)
+                    .context(context);
+
+                const pie = d3.pie().sort(null).value(d => d)
+
+                var arcs = pie(d.pie);
+
+                arcs.forEach(function (d, i) {
+                    context.beginPath();
+                    context.moveTo(d.x + nodeRadius, d.y);
+                    arc(d);
+                    context.fillStyle = colors[i];
+                    context.fill();
+                });
+                context.beginPath();
+                arcs.forEach(arc);
+                context.strokeStyle = "#fff";
+                context.stroke();
+            } else {
+                if (d.cluster !== undefined || d.cluster !== null) {
+                    context.fillStyle = getColor(d.cluster)
+                }
+                context.moveTo(d.x + nodeRadius, d.y);
+                context.arc(d.x, d.y, nodeRadius, 0, 2 * Math.PI);
+                context.fill();
+                context.stroke();
+            }
+        }
+
+        const getColor = (cluster) => {
+            if (colors) {
+                return colors[cluster % colors.length]
+            } else {
+                const color = defaultColor.colors[cluster % defaultColor.colors.length]
+                // console.log(color)
+                return color
+            }
         }
 
         // zoom events
@@ -88,7 +128,8 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
             const x = transform.invertX(event.x),
                 y = transform.invertY(event.y);
             let [validXStartIndex, validXEndIndex] = bnSearch(x - nodeRadius, x + nodeRadius, 0, simedNodes.length - 1, simedNodes, isInXRange)
-            if (validXStartIndex && validXEndIndex) {
+            // console.log(`validXStartIndex: ${validXStartIndex}, validXEndIndex${validXEndIndex}`)
+            if (validXStartIndex !== null && validXEndIndex !== null) {
                 let validNodeIndex = null, dx, dy, d, tempNode;
                 while (validXStartIndex <= validXEndIndex && validNodeIndex === null) {
                     tempNode = simedNodes[validXStartIndex];
@@ -113,15 +154,17 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
             const mid = Math.floor((ed + st) / 2);
             if (compareFn(targetSt, targetEd, array[mid].x)) {
                 // valid X is between validStIndex and validEdIndex
-                for (var i = mid; compareFn(targetSt, targetEd, array[i].x); --i) { }
+                for (var i = mid; i >= 0 && compareFn(targetSt, targetEd, array[i].x); --i) { }
                 let validStIndex = i + 1;
-                for (i = mid; compareFn(targetSt, targetEd, array[i].x); ++i) { }
+                for (i = mid; i < array.length && compareFn(targetSt, targetEd, array[i].x); ++i) { }
                 let validEdIndex = i - 1;
                 return [validStIndex, validEdIndex]
             } else {
                 if (targetSt > array[mid].x) {
+                    // console.log("hey")
                     return bnSearch(targetSt, targetEd, mid + 1, ed, array, compareFn);
                 } else {
+                    // console.log("hi")
                     return bnSearch(targetSt, targetEd, st, mid - 1, array, compareFn);
                 }
             }
@@ -131,7 +174,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
         }
 
         // worker start simulation
-        if(!isSimulated) {
+        if (!isSimulated) {
             const simWorker = new SimWorker();
             simWorker.postMessage({
                 nodes, links, width, height
@@ -146,7 +189,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false }) => {
                 }
             }
         } else {
-            ended({nodes,links})
+            ended({ nodes, links })
         }
 
         // hanging events in the canvas
