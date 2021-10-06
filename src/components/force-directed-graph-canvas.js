@@ -29,6 +29,7 @@ const ForceDirectedGraphCanvas = ({
     const { width, height } = useWindowDimension();
     const [loadingProgress, setLoadingProgress] = useState(0)
     const [isCanvasReady, setIsCanvasReady] = useState(false)
+    const transform = useRef(d3.zoomIdentity)
 
     const fnColorCritiria = useCallback((d) => {
         if (colorCritiria) {
@@ -62,9 +63,17 @@ const ForceDirectedGraphCanvas = ({
                 .range([minRadius, maxRadius])
             :
             () => nodeRadius
+        
+        // zoom events
+        const zoomed = (event) => {
+            transform.current = event.transform;
+            // console.log(transform)
+            draw();
+        }
+        const zoom = d3.zoom()
+            .scaleExtent([1 / 100, 8])
+            .on("zoom", zoomed)
 
-        // transform object for zoom
-        let transform = d3.zoomIdentity;
         // simulated nodes, and links, with x, y, and id
         let simedNodes, simedLinks;
 
@@ -75,8 +84,8 @@ const ForceDirectedGraphCanvas = ({
             // sort by x for faster onClick
             simedNodes.sort((a, b) => (a.x - b.x));
             simedLinks = data.links;
-            console.log(simedNodes)
-            console.log(simedLinks)
+            // console.log(simedNodes)
+            // console.log(simedLinks)
             draw();
         }
         const draw = () => {
@@ -84,8 +93,8 @@ const ForceDirectedGraphCanvas = ({
             // console.log(simedLinks)
             context.clearRect(0, 0, width, height);
             context.save();
-            context.translate(transform.x, transform.y);
-            context.scale(transform.k, transform.k);
+            context.translate(transform.current.x, transform.current.y);
+            context.scale(transform.current.k, transform.current.k);
 
             context.beginPath();
             simedLinks.forEach(drawLink);
@@ -150,16 +159,6 @@ const ForceDirectedGraphCanvas = ({
             }
         }
 
-        // zoom events
-        const zoomed = (event) => {
-            transform = event.transform;
-            // console.log(transform)
-            draw();
-        }
-        const zoom = d3.zoom()
-            .scaleExtent([1 / 100, 8])
-            .on("zoom", zoomed)
-
 
         // onClick events
         const isInXRange = (x, target, radius) => {
@@ -167,8 +166,8 @@ const ForceDirectedGraphCanvas = ({
             return x - radius <= target && target <= x + radius
         };
         const onClickGraph = (event) => {
-            const x = transform.invertX(event.x),
-                y = transform.invertY(event.y);
+            const x = transform.current.invertX(event.x),
+                y = transform.current.invertY(event.y);
             let pressedNodeIndex = bnSearch(x, y, 0, simedNodes.length - 1, simedNodes, isInXRange)
             if (pressedNodeIndex !== null) {
                 onClickNode(simedNodes[pressedNodeIndex])
@@ -182,7 +181,7 @@ const ForceDirectedGraphCanvas = ({
             const midRadius = _getNodeRadius(fnRadiusCritiria(array[mid]))
             if (compareFn(targetX, array[mid].x, midRadius)) {
                 let d, dx, dy, i = mid;
-                do {
+                do { // 
                     dx = Math.abs(array[i].x - targetX);
                     dy = Math.abs(array[i].y - targetY);
                     d = Math.sqrt(dx * dx + dy * dy);
@@ -190,15 +189,16 @@ const ForceDirectedGraphCanvas = ({
                         return i
                     }
                 } while (dx <= maxRadius && --i >= 0);
-                i = mid
-                do {
+                i = mid + 1
+                dx = 0
+                while (dx <= maxRadius && ++i < array.length) {
                     dx = Math.abs(array[i].x - targetX);
                     dy = Math.abs(array[i].y - targetY);
                     d = Math.sqrt(dx * dx + dy * dy);
                     if (d <= _getNodeRadius(fnRadiusCritiria(array[i]))) {
                         return i
                     }
-                } while (dx <= maxRadius && ++i < array.length);
+                }
                 return null
             } else {
                 if (targetX - midRadius > array[mid].x) {

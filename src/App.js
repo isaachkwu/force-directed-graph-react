@@ -13,15 +13,15 @@ function App() {
   return (
     <div className="App">
       <ForceDirectedGraphCanvas 
-        nodes={BigTestData.nodes}
-        links={BigTestData.links}
-        colorCritiria={d => d.type}
-        isDynamicRadius
+        // nodes={BigTestData.nodes}
+        // links={BigTestData.links}
+        // colorCritiria={d => d.type}
+        // isDynamicRadius
 
-        // nodes={SimulatedNodes}
-        // links={SimulatedLinks}
-        // colorCritiria={d => d.cluster}
-        // isSimulated
+        nodes={SimulatedNodes}
+        links={SimulatedLinks}
+        colorCritiria={d => d.cluster}
+        isSimulated
       />
     </div>
   );
