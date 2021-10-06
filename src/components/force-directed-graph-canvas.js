@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import defaultColor from '../data/colors-40.json'
 
@@ -8,20 +8,20 @@ import SimWorker from '../workers/force-simulation.worker'
 // hooks
 import useWindowDimension from '../hooks/useWindowDimension';
 
-const ForceDirectedGraphCanvas = ({ 
-    nodes, 
-    links, 
-    colors,
-    colorCritiria = d => d.type,
-    isSimulated = false, 
-    isDynamicRadius = false,
-    radiusCritiria = (d) => d.num,
-    nodeRadius = 10,
-    maxRadius = 15,
-    minRadius = 3,
-    linkWidth = 0.5,
+const ForceDirectedGraphCanvas = ({
+    nodes,
+    links,
+    colors, // an json with a 'colors' array attributes
+    colorCritiria, // function to get the critiria of the color, ex: d => d.type
+    isSimulated = false, // true means the nodes and links are simulated before
+    isDynamicRadius = false, // true means the nodes size scale according to radiusCritiria
+    radiusCritiria, // function to get a nodes attribute that determines its radius ex: d => d.num
+    nodeRadius = 10, // node radius when isDynamicRadius is false
+    maxRadius = 15, // maximum radius of a node when isDynamicRadius is true
+    minRadius = 3, // minimum radius of a node when isDynamicRadius is false
+    linkWidth = 0.2,
     linkColor = '#aaa',
-    borderWidth = 1,
+    borderWidth = 0.2,
     borderColor = '#333333'
 
 }) => {
@@ -30,14 +30,27 @@ const ForceDirectedGraphCanvas = ({
     const [loadingProgress, setLoadingProgress] = useState(0)
     const [isCanvasReady, setIsCanvasReady] = useState(false)
 
-    const fnColorCritiria = useCallback(colorCritiria, [colorCritiria])
-    const fnRadiusCritiria = useCallback(radiusCritiria, [radiusCritiria])
+    const fnColorCritiria = useCallback((d) => {
+        if (colorCritiria) {
+            return colorCritiria(d)
+        }
+
+        // default critiria for choosing color of a node
+        return d.type !== null && d.type !== undefined ? d.type : 0
+    }, [colorCritiria])
+    const fnRadiusCritiria = useCallback((d) => {
+        if (radiusCritiria) {
+            return radiusCritiria(d)
+        }
+        // default critiria for deciding radius of a node
+        return d.num !== null && d.num !== undefined ? d.num : 0
+    }, [radiusCritiria])
 
     useEffect(() => {
         const canvasElement = canvasRef.current;
         const context = canvasElement.getContext("2d");
 
-        // simulation is ongoing
+        // simulation is loading (only runs when isSimulated = false)
         const ticked = (data) => {
             setIsCanvasReady(false);
             setLoadingProgress(data.progress)
@@ -48,8 +61,8 @@ const ForceDirectedGraphCanvas = ({
                 .domain([d3.min(nodes, fnRadiusCritiria), d3.max(nodes, fnRadiusCritiria)])
                 .range([minRadius, maxRadius])
             :
-            () => nodeRadius 
-        
+            () => nodeRadius
+
         // transform object for zoom
         let transform = d3.zoomIdentity;
         // simulated nodes, and links, with x, y, and id
@@ -62,8 +75,8 @@ const ForceDirectedGraphCanvas = ({
             // sort by x for faster onClick
             simedNodes.sort((a, b) => (a.x - b.x));
             simedLinks = data.links;
-            // console.log(simedNodes)
-            // console.log(simedLinks)
+            console.log(simedNodes)
+            console.log(simedLinks)
             draw();
         }
         const draw = () => {
@@ -103,7 +116,6 @@ const ForceDirectedGraphCanvas = ({
                     context.beginPath();
                     context.translate(d.x, d.y)
                     genArc(arc);
-                    // console.log(arc)
                     context.fillStyle = color(arc.data[1]);
                     context.strokeStyle = borderColor;
                     context.lineWidth = borderWidth;
@@ -157,51 +169,50 @@ const ForceDirectedGraphCanvas = ({
         const onClickGraph = (event) => {
             const x = transform.invertX(event.x),
                 y = transform.invertY(event.y);
-            let [validXStartIndex, validXEndIndex] = bnSearch(x, 0, simedNodes.length - 1, simedNodes, isInXRange)
-            // console.log(`validXStartIndex: ${validXStartIndex}, validXEndIndex${validXEndIndex}`)
-            if (validXStartIndex !== null && validXEndIndex !== null) {
-                let validNodeIndex = null, dx, dy, d, tempNode;
-                while (validXStartIndex <= validXEndIndex && validNodeIndex === null) {
-                    tempNode = simedNodes[validXStartIndex];
-                    dx = Math.abs(tempNode.x - x);
-                    dy = Math.abs(tempNode.y - y);
-                    d = Math.sqrt(dx * dx + dy * dy);
-                    if (d <= _getNodeRadius(fnRadiusCritiria(tempNode))) {
-                        validNodeIndex = validXStartIndex;
-                    }
-                    validXStartIndex++;
-                }
-                if (validNodeIndex !== null) {
-                    console.log(`Node id: ${simedNodes[validNodeIndex].id} index: ${validNodeIndex}`)
-                    onClickNode(simedNodes[validNodeIndex].id)
-                }
+            let pressedNodeIndex = bnSearch(x, y, 0, simedNodes.length - 1, simedNodes, isInXRange)
+            if (pressedNodeIndex !== null) {
+                onClickNode(simedNodes[pressedNodeIndex])
             }
         }
-        const bnSearch = (targetX, st, ed, array, compareFn) => {
+        const bnSearch = (targetX, targetY, st, ed, array, compareFn) => {
             if (st > ed) {
-                return [null, null]
+                return null
             }
             const mid = Math.floor((ed + st) / 2);
             const midRadius = _getNodeRadius(fnRadiusCritiria(array[mid]))
             if (compareFn(targetX, array[mid].x, midRadius)) {
-                // valid X is between validStIndex and validEdIndex
-                for (var i = mid; i >= 0 && compareFn(targetX, array[i].x, midRadius); --i) { }
-                let validStIndex = i + 1;
-                for (i = mid; i < array.length && compareFn(targetX, array[i].x, midRadius); ++i) { }
-                let validEdIndex = i - 1;
-                return [validStIndex, validEdIndex]
+                let d, dx, dy, i = mid;
+                do {
+                    dx = Math.abs(array[i].x - targetX);
+                    dy = Math.abs(array[i].y - targetY);
+                    d = Math.sqrt(dx * dx + dy * dy);
+                    if (d <= _getNodeRadius(fnRadiusCritiria(array[i]))) {
+                        return i
+                    }
+                } while (dx <= maxRadius && --i >= 0);
+                i = mid
+                do {
+                    dx = Math.abs(array[i].x - targetX);
+                    dy = Math.abs(array[i].y - targetY);
+                    d = Math.sqrt(dx * dx + dy * dy);
+                    if (d <= _getNodeRadius(fnRadiusCritiria(array[i]))) {
+                        return i
+                    }
+                } while (dx <= maxRadius && ++i < array.length);
+                return null
             } else {
                 if (targetX - midRadius > array[mid].x) {
                     // console.log("hey")
-                    return bnSearch(targetX, mid + 1, ed, array, compareFn);
+                    return bnSearch(targetX, targetY, mid + 1, ed, array, compareFn);
                 } else {
                     // console.log("hi")
-                    return bnSearch(targetX, st, mid - 1, array, compareFn);
+                    return bnSearch(targetX, targetY, st, mid - 1, array, compareFn);
                 }
             }
         }
-        const onClickNode = (id) => {
-            console.log(`onClickNode invoked. id = ${id}`)
+        const onClickNode = (node) => {
+            console.log(node)
+            //  implement your own on click function!
         }
 
         // worker start simulation
@@ -233,7 +244,7 @@ const ForceDirectedGraphCanvas = ({
             // clean up
             d3.select(canvasElement).selectAll("*").remove();
         }
-    }, [borderColor, borderWidth, colors, height, isDynamicRadius, isSimulated, linkColor, linkWidth, links, maxRadius, minRadius, nodeRadius, nodes, width]);
+    }, [borderColor, borderWidth, colors, fnColorCritiria, fnRadiusCritiria, height, isDynamicRadius, isSimulated, linkColor, linkWidth, links, maxRadius, minRadius, nodeRadius, nodes, width]);
     return <>
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
@@ -249,4 +260,4 @@ const ForceDirectedGraphCanvas = ({
     </>
 }
 
-export default ForceDirectedGraphCanvas;
+export default ForceDirectedGraphCanvas

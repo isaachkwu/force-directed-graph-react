@@ -15,8 +15,13 @@ function App() {
       <ForceDirectedGraphCanvas 
         nodes={BigTestData.nodes}
         links={BigTestData.links}
-        // isSimulated
+        colorCritiria={d => d.type}
         isDynamicRadius
+
+        // nodes={SimulatedNodes}
+        // links={SimulatedLinks}
+        // colorCritiria={d => d.cluster}
+        // isSimulated
       />
     </div>
   );

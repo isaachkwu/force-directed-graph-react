@@ -919,10 +919,10 @@
             "type": 1,
             "num": 75,
             "pie": {
-                "label1": 4,
-                "label2": 2,
-                "label3": 0,
-                "label4": 9
+                "label1": 9,
+                "label2": 5,
+                "label3": 1,
+                "label4": 20
             }
         }
     ],
