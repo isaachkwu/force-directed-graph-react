@@ -35,7 +35,6 @@ const ForceDirectedGraphCanvas = ({
         if (colorCritiria) {
             return colorCritiria(d)
         }
-
         // default critiria for choosing color of a node
         return d.type !== null && d.type !== undefined ? d.type : 0
     }, [colorCritiria])
@@ -87,6 +86,25 @@ const ForceDirectedGraphCanvas = ({
             // console.log(simedNodes)
             // console.log(simedLinks)
             draw();
+        }
+
+        // TODO: make line become vector check
+        const isVectorInViewport = (source, target, x1, y1, x2, y2) => {
+            if (target.x - source.x === 0) { // if line is vertical (gradient = infty)
+                return ((target.x - x1)*(target.x - x2) <= 0);
+            } else if (target.y - source.y === 0) { // if line is horizontal (gradient = 0)
+                return ((target.y - y1)*(target.y - y2) <= 0);
+            } else {
+                const gradient = (target.y - source.y)/(target.x - source.x);
+                const yLineEqn = (x) => gradient*(x - target.x) + target.y;
+                const xLineEqn = (y) => (y - target.y)/gradient + target.x;
+                const yHit1 = yLineEqn(x1),
+                    yHit2 = yLineEqn(x2),
+                    xHit1 = xLineEqn(y1),
+                    xHit2 = xLineEqn(y2);
+            
+                return ((y1 - yHit1)*(y2 - yHit1) <= 0) || ((y1 - yHit2)*(y2 - yHit2) <= 0) || ((x2 - xHit1)*(x1 - xHit1) <= 0) || ((x2 - xHit2)*(x1 - xHit2) <= 0);
+            }
         }
         const draw = () => {
             // console.log(simedNodes);
