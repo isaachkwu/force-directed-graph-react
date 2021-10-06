@@ -9,7 +9,7 @@ onmessage = (event) => {
 
   let simulation = d3.forceSimulation(nodes)
       .force("charge", d3.forceManyBody())
-      .force("link", d3.forceLink(links).id(d => d.id).distance(20).strength(1))
+      .force("link", d3.forceLink(links).id(d => d.id).distance(40).strength(1))
       .force("center", d3.forceCenter(width / 2, height / 2))
       // .force("x", d3.forceX())
       // .force("y", d3.forceY())

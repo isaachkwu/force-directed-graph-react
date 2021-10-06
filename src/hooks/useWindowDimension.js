@@ -5,16 +5,23 @@ export default function useWindowDimension() {
         width: window.innerWidth, height: window.innerHeight});
 
     useEffect(() => {
+        let resizeTimer;
+        const waitResize = () => {
+            clearTimeout(resizeTimer)
+            resizeTimer = setTimeout(handleResize, 100)
+        }
+
         const handleResize = () => {
             setDimension({
                 width: window.innerWidth,
                 height: window.innerHeight,
             })
         }
-        window.addEventListener('resize', handleResize)
+        window.addEventListener('resize', waitResize)
 
         return () => {
-            window.removeEventListener("resize", handleResize)
+            window.removeEventListener("resize", waitResize)
+            clearTimeout(resizeTimer);
         }
     }, [])
 

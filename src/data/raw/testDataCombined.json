@@ -917,7 +917,13 @@
         {
             "id": "IN_289",
             "type": 1,
-            "num": 75
+            "num": 75,
+            "pie": {
+                "label1": 4,
+                "label2": 2,
+                "label3": 0,
+                "label4": 9
+            }
         }
     ],
     "links": [
