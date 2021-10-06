@@ -38,8 +38,8 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false, colors })
             // sort by x for faster onClick
             simedNodes.sort((a, b) => (a.x - b.x));
             simedLinks = data.links;
-            console.log(simedNodes)
-            console.log(simedLinks)
+            // console.log(simedNodes)
+            // console.log(simedLinks)
             draw();
         }
         const draw = () => {
@@ -64,30 +64,25 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false, colors })
             context.lineTo(d.target.x, d.target.y);
         }
         function drawNode(d) {
-            context.beginPath();
             if (d.pie) {
-                // FIXME: not fully implemented
-                const arc = d3.arc()
-                    .outerRadius(nodeRadius)
+                const pie = d3.pie().value(d => d[1]);
+                const genArc = d3.arc()
                     .innerRadius(0)
+                    .outerRadius(nodeRadius)
                     .context(context);
-
-                const pie = d3.pie().sort(null).value(d => d)
-
-                var arcs = pie(d.pie);
-
-                arcs.forEach(function (d, i) {
+                const arcs = pie(Object.entries(d.pie))
+                arcs.forEach((arc, i) => {
+                    context.save();
                     context.beginPath();
-                    context.moveTo(d.x + nodeRadius, d.y);
-                    arc(d);
-                    context.fillStyle = colors[i];
+                    context.translate(d.x, d.y)
+                    genArc(arc);
+                    context.fillStyle = getColor(i);
                     context.fill();
-                });
-                context.beginPath();
-                arcs.forEach(arc);
-                context.strokeStyle = "#fff";
-                context.stroke();
+                    context.stroke();
+                    context.restore();
+                })
             } else {
+                context.beginPath();
                 if (d.cluster !== undefined || d.cluster !== null) {
                     context.fillStyle = getColor(d.cluster)
                 }
@@ -202,7 +197,7 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false, colors })
             // clean up
             d3.select(canvasElement).selectAll("*").remove();
         }
-    }, [height, isSimulated, links, nodes, width]);
+    }, [colors, height, isSimulated, links, nodes, width]);
     return <>
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
