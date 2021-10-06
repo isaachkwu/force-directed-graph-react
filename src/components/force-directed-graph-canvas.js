@@ -159,7 +159,6 @@ const ForceDirectedGraphCanvas = ({
             }
         }
 
-
         // onClick events
         const isInXRange = (x, target, radius) => {
             // console.log(start, end, target)
@@ -173,6 +172,7 @@ const ForceDirectedGraphCanvas = ({
                 onClickNode(simedNodes[pressedNodeIndex])
             }
         }
+        // !! assuming all nodes are not stacked
         const bnSearch = (targetX, targetY, st, ed, array, compareFn) => {
             if (st > ed) {
                 return null
@@ -189,7 +189,7 @@ const ForceDirectedGraphCanvas = ({
                         return i
                     }
                 } while (dx <= maxRadius && --i >= 0);
-                i = mid + 1
+                i = mid
                 dx = 0
                 while (dx <= maxRadius && ++i < array.length) {
                     dx = Math.abs(array[i].x - targetX);
