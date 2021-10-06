@@ -71,12 +71,16 @@ const ForceDirectedGraphCanvas = ({ nodes, links, isSimulated = false, colors })
                     .outerRadius(nodeRadius)
                     .context(context);
                 const arcs = pie(Object.entries(d.pie))
+                const color = d3.scaleLinear()
+                    .domain([0, d3.max(Object.entries(d.pie), d => d[1])])
+                    .range(['#fff', getColor(d.cluster)])
                 arcs.forEach((arc, i) => {
                     context.save();
                     context.beginPath();
                     context.translate(d.x, d.y)
                     genArc(arc);
-                    context.fillStyle = getColor(i);
+                    console.log(arc)
+                    context.fillStyle = color(arc.data[1]);
                     context.fill();
                     context.stroke();
                     context.restore();
