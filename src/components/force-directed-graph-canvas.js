@@ -22,8 +22,8 @@ const ForceDirectedGraphCanvas = ({
     linkWidth = 0.2,
     linkColor = '#aaa',
     borderWidth = 0.2,
-    borderColor = '#333333'
-
+    borderColor = '#333333',
+    onlyRenderOnScreenElement = false,
 }) => {
     const canvasRef = useRef(null);
     const { width, height } = useWindowDimension();
@@ -62,7 +62,7 @@ const ForceDirectedGraphCanvas = ({
                 .range([minRadius, maxRadius])
             :
             () => nodeRadius
-        
+
         // zoom events
         const zoomed = (event) => {
             transform.current = event.transform;
@@ -88,39 +88,90 @@ const ForceDirectedGraphCanvas = ({
             draw();
         }
 
-        // TODO: make line become vector check
-        const isVectorInViewport = (source, target, x1, y1, x2, y2) => {
-            if (target.x - source.x === 0) { // if line is vertical (gradient = infty)
-                return ((target.x - x1)*(target.x - x2) <= 0);
-            } else if (target.y - source.y === 0) { // if line is horizontal (gradient = 0)
-                return ((target.y - y1)*(target.y - y2) <= 0);
-            } else {
-                const gradient = (target.y - source.y)/(target.x - source.x);
-                const yLineEqn = (x) => gradient*(x - target.x) + target.y;
-                const xLineEqn = (y) => (y - target.y)/gradient + target.x;
-                const yHit1 = yLineEqn(x1),
-                    yHit2 = yLineEqn(x2),
-                    xHit1 = xLineEqn(y1),
-                    xHit2 = xLineEqn(y2);
-            
-                return ((y1 - yHit1)*(y2 - yHit1) <= 0) || ((y1 - yHit2)*(y2 - yHit2) <= 0) || ((x2 - xHit1)*(x1 - xHit1) <= 0) || ((x2 - xHit2)*(x1 - xHit2) <= 0);
+        const isVectorOnViewport = (source, target, x1, y1, x2, y2) => {
+            if ((((target.x - x1) * (target.x - x2) <= 0) && ((target.y - y1) * (target.y - y2) <= 0))||
+            (((source.x - x1) * (source.x - x2) <= 0) && ((source.y - y1) * (source.y - y2) <= 0))
+            ) { // either source or target is located inside the viewport
+                return true
             }
+            if (target.x - source.x === 0) { // if line is vertical (gradient = infty)
+                return ((target.x - x1) * (target.x - x2) <= 0) &&
+                    (!((y1 > target.y && y1 > source.y) || (y2 < target.y && y2 < source.y)));
+            }
+            if (target.y - source.y === 0) { // if line is horizontal (gradient = 0)
+                return ((target.y - y1) * (target.y - y2) <= 0) &&
+                    (!((x1 > target.x && x1 > source.x) || (x2 < target.x && x2 < source.x)));
+            }
+            const gradient = (target.y - source.y) / (target.x - source.x);
+            const yLineEqn = (x) => gradient * (x - target.x) + target.y;
+            const xLineEqn = (y) => (y - target.y) / gradient + target.x;
+            const yHit1 = yLineEqn(x1),
+                yHit2 = yLineEqn(x2),
+                xHit1 = xLineEqn(y1),
+                xHit2 = xLineEqn(y2);
+            return (((y1 - yHit1) * (y2 - yHit1) <= 0) && ((target.x - x1) * (source.x - x1) <= 0)) ||
+                (((y1 - yHit2) * (y2 - yHit2) <= 0) && ((target.x - x2) * (source.x - x2) <= 0)) ||
+                (((x2 - xHit1) * (x1 - xHit1) <= 0) && ((target.y - y1) * (source.y - y1) <= 0)) ||
+                (((x2 - xHit2) * (x1 - xHit2) <= 0) && ((target.y - y2) * (source.y - y2) <= 0));
         }
+
+        const isNodeOnViewport = (nodeX, nodeY, nodeRadius, x1, y1, x2, y2) => {
+            if ((nodeX - x1) * (nodeX - x2) <= 0 && (nodeY - y1) * (nodeY - y2) <= 0) {
+                return true
+            }
+            // find amount of intersection when x / y is constant
+            const xDiscriminant = (y) => 4 * Math.pow(nodeX, 2) - 4 * (Math.pow(y, 2) + Math.pow(nodeX, 2) + Math.pow(nodeY, 2) - Math.pow(nodeRadius, 2) - 2 * y * nodeY);
+            const yDiscriminant = (x) => 4 * Math.pow(nodeY, 2) - 4 * (Math.pow(x, 2) + Math.pow(nodeY, 2) + Math.pow(nodeX, 2) - Math.pow(nodeRadius, 2) - 2 * x * nodeX);
+            // find the exact intersactions (provided the discriminant > 0)
+            const xIntersections = (xDiscriminant) => {
+                const rootDiscriminant = Math.sqrt(xDiscriminant) / 2;
+                return [nodeX + rootDiscriminant, nodeX - rootDiscriminant]
+            }
+            const yIntersections = (yDiscriminant) => {
+                const rootDiscriminant = Math.sqrt(yDiscriminant) / 2;
+                return [nodeY + rootDiscriminant, nodeY - rootDiscriminant]
+            }
+            // find intersections within the viewport length
+            const isIntersectOnRange = (intersections, start, end) => {
+                // console.log(`intersections: ${intersections}, start: ${start}, end: ${end}`)
+                return (intersections[0]-start)*(intersections[0]-end) <= 0 ||
+                (intersections[1]-start)*(intersections[1]-end) <= 0
+            }
+            const yHit1 = yDiscriminant(x1),
+                yHit2 = yDiscriminant(x2),
+                xHit1 = xDiscriminant(y1),
+                xHit2 = xDiscriminant(y2);
+            // console.log(`y1I: ${yIntersections(yHit1, y1, y2)}, y2I: ${yIntersections(yHit2, y1, y2)}, xH1: ${xIntersections(xHit1, x1, x2)}, xH2: ${isIntersectOnRange(xIntersections(xHit2, x1, x2))}`)
+            
+            return (yHit1 > 0 && isIntersectOnRange(yIntersections(yHit1), y1, y2)) ||
+                (yHit2 > 0 && isIntersectOnRange(yIntersections(yHit2), y1, y2)) ||
+                (xHit1 > 0 && isIntersectOnRange(xIntersections(xHit1), x1, x2)) ||
+                (xHit2 > 0 && isIntersectOnRange(xIntersections(xHit2), x1, x2));
+        }
+
         const draw = () => {
-            // console.log(simedNodes);
-            // console.log(simedLinks)
             context.clearRect(0, 0, width, height);
             context.save();
             context.translate(transform.current.x, transform.current.y);
             context.scale(transform.current.k, transform.current.k);
-
+            console.log(simedLinks)
+            console.log(simedNodes)
             context.beginPath();
-            simedLinks.forEach(drawLink);
+            if (onlyRenderOnScreenElement) {
+                const filteredLinks = simedLinks.filter(link => isVectorOnViewport(link.source, link.target, transform.current.invertX(0), transform.current.invertY(0), transform.current.invertX(width), transform.current.invertY(height)));
+                filteredLinks.forEach(drawLink)
+            } else {
+                simedLinks.forEach(drawLink)
+            }
             context.strokeStyle = linkColor;
             context.lineWidth = linkWidth;
             context.stroke();
-
-            simedNodes.forEach(drawNode);
+            if (onlyRenderOnScreenElement) {
+                const filteredNodes = simedNodes.filter(node => isNodeOnViewport(node.x, node.y, _getNodeRadius(fnRadiusCritiria(node)), transform.current.invertX(0), transform.current.invertY(0), transform.current.invertX(width), transform.current.invertY(height)))
+                filteredNodes.forEach(drawNode);
+            } else {
+                simedNodes.forEach(drawNode)
+            }
             context.restore()
         }
         function drawLink(d) {
@@ -138,7 +189,7 @@ const ForceDirectedGraphCanvas = ({
                 const color = d3.scaleLinear()
                     .domain([0, d3.max(Object.entries(d.pie), d => d[1])])
                     .range(['#fff', getColor(d)])
-                arcs.forEach((arc, i) => {
+                arcs.forEach((arc) => {
                     context.save();
                     context.beginPath();
                     context.translate(d.x, d.y)
@@ -172,14 +223,12 @@ const ForceDirectedGraphCanvas = ({
                 return colors[fnColorCritiria(d) % colors.length]
             } else {
                 const color = defaultColor.colors[fnColorCritiria(d) % defaultColor.colors.length]
-                // console.log(color)
                 return color
             }
         }
 
         // onClick events
         const isInXRange = (x, target, radius) => {
-            // console.log(start, end, target)
             return x - radius <= target && target <= x + radius
         };
         const onClickGraph = (event) => {
@@ -220,10 +269,8 @@ const ForceDirectedGraphCanvas = ({
                 return null
             } else {
                 if (targetX - midRadius > array[mid].x) {
-                    // console.log("hey")
                     return bnSearch(targetX, targetY, mid + 1, ed, array, compareFn);
                 } else {
-                    // console.log("hi")
                     return bnSearch(targetX, targetY, st, mid - 1, array, compareFn);
                 }
             }
@@ -262,7 +309,7 @@ const ForceDirectedGraphCanvas = ({
             // clean up
             d3.select(canvasElement).selectAll("*").remove();
         }
-    }, [borderColor, borderWidth, colors, fnColorCritiria, fnRadiusCritiria, height, isDynamicRadius, isSimulated, linkColor, linkWidth, links, maxRadius, minRadius, nodeRadius, nodes, width]);
+    }, [borderColor, borderWidth, colors, fnColorCritiria, fnRadiusCritiria, height, isDynamicRadius, isSimulated, linkColor, linkWidth, links, maxRadius, minRadius, nodeRadius, nodes, onlyRenderOnScreenElement, width]);
     return <>
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
@@ -272,7 +319,9 @@ const ForceDirectedGraphCanvas = ({
             width={width}
             height={height}
             style={{
-                display: isCanvasReady ? 'initial' : 'none'
+                margin: 0,
+                padding: 0,
+                display: isCanvasReady ? 'block' : 'none'
             }}
         />
     </>

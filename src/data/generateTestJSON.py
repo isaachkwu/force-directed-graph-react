@@ -1,7 +1,13 @@
 import sys
 import random
 from time import time
-
+'''
+    args:
+    [0]: amount of nodes to be generated,
+    [1]: limits of the 'num' attribute,
+    [2]: limits of the 'clusters' attribute,
+    [3]: amount of pie chart nodes
+'''
 # check args
 num_of_nodes = 50
 num_limit = 50
