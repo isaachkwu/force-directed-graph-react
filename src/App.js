@@ -6,7 +6,7 @@ import ForceDirectedGraphWebgl from './components/force-directed-graph-webgl';
 // import CalculatedNodes from './data/nodes.json';
 // import CalculatedLinks from './data/links.json';
 // import OriginalNodesAndLinks from './data/testDataCombined.json'
-import BigTestData from './data/raw/testData-50000-5000-30-2500.json'
+import BigTestData from './data/raw/testDataCombined.json'
 import SimulatedLinks from './data/simulated/links-50000-5000-30-2500.json'
 import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
@@ -26,10 +26,13 @@ function App() {
         isDynamicRadius
         isSimulated
         onlyRenderOnScreenElement // disable this to stop limited rendering
+<<<<<<< HEAD
       /> */}
       <ForceDirectedGraphWebgl 
         nodes={SimulatedNodes}
         links={SimulatedLinks}
+=======
+>>>>>>> e4eb9d4aa7d48437f0b556e4ca3e7d0f5a4424e5
       />
     </div>
   );

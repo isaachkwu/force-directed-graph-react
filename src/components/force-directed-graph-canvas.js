@@ -149,13 +149,17 @@ const ForceDirectedGraphCanvas = ({
                 (xHit2 > 0 && isIntersectOnRange(xIntersections(xHit2), x1, x2));
         }
 
+        const isNodeOnViewport2 = (nodeX, nodeY, maxRadius, x1, y1, x2, y2) => {
+            return ((nodeX - (x1 - maxRadius)) * (nodeX - (x2 + maxRadius)) <= 0 && (nodeY - (y1 - maxRadius)) * (nodeY - (y2 + maxRadius)) <= 0)
+        }
+
         const draw = () => {
             context.clearRect(0, 0, width, height);
             context.save();
             context.translate(transform.current.x, transform.current.y);
             context.scale(transform.current.k, transform.current.k);
-            console.log(simedLinks)
-            console.log(simedNodes)
+            // console.log(simedLinks)
+            // console.log(simedNodes)
             context.beginPath();
             if (onlyRenderOnScreenElement) {
                 const filteredLinks = simedLinks.filter(link => isVectorOnViewport(link.source, link.target, transform.current.invertX(0), transform.current.invertY(0), transform.current.invertX(width), transform.current.invertY(height)));
@@ -167,7 +171,17 @@ const ForceDirectedGraphCanvas = ({
             context.lineWidth = linkWidth;
             context.stroke();
             if (onlyRenderOnScreenElement) {
-                const filteredNodes = simedNodes.filter(node => isNodeOnViewport(node.x, node.y, _getNodeRadius(fnRadiusCritiria(node)), transform.current.invertX(0), transform.current.invertY(0), transform.current.invertX(width), transform.current.invertY(height)))
+                // const filteredNodes = simedNodes.filter(node => isNodeOnViewport(node.x, node.y, _getNodeRadius(fnRadiusCritiria(node)), transform.current.invertX(0), transform.current.invertY(0), transform.current.invertX(width), transform.current.invertY(height)))
+                const filteredNodes = simedNodes.filter(node => isNodeOnViewport2(
+                    node.x, 
+                    node.y,
+                    isDynamicRadius ? maxRadius : nodeRadius,
+                    transform.current.invertX(0), 
+                    transform.current.invertY(0), 
+                    transform.current.invertX(width), 
+                    transform.current.invertY(height)
+                ))
+                // console.log(filteredNodes)
                 filteredNodes.forEach(drawNode);
             } else {
                 simedNodes.forEach(drawNode)
