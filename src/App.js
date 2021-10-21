@@ -26,13 +26,10 @@ function App() {
         isDynamicRadius
         isSimulated
         onlyRenderOnScreenElement // disable this to stop limited rendering
-<<<<<<< HEAD
       /> */}
       <ForceDirectedGraphWebgl 
         nodes={SimulatedNodes}
         links={SimulatedLinks}
-=======
->>>>>>> e4eb9d4aa7d48437f0b556e4ca3e7d0f5a4424e5
       />
     </div>
   );

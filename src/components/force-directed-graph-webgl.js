@@ -1,11 +1,14 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three'
+import * as d3 from 'd3';
 import { WEBGL } from 'three/examples/jsm/WebGL';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { select } from 'd3-selection';
 
 import defaultColor from '../data/colors-40.json'
 import useWindowDimension from '../hooks/useWindowDimension';
+
+
 
 const ForceDirectedGraphWebgl = ({
     nodes,
@@ -17,12 +20,12 @@ const ForceDirectedGraphWebgl = ({
 
     useEffect(() => {
         const mount = mountRef.current;
-        const fov = 75, near = 0.1, far = 10, aspect = width / height;
+        const fov = 75, near = 0.1, far = 600, aspect = width / height;
         const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x666666);
         const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(width, height );
+        renderer.setSize(width, height);
         mount.appendChild(renderer.domElement)
 
         const toRadians = (angle) => angle * (Math.PI / 180);
@@ -68,50 +71,46 @@ const ForceDirectedGraphWebgl = ({
             camera.position.set(0, 0, far)
         }
 
-        // const circle_sprite_aa= new THREE.TextureLoader().load(
-        //     "https://blog.fastforwardlabs.com/images/2018/02/circle_aa-1518730700478.png"
-        //   )
+        const circle_sprite_aa= new THREE.TextureLoader().load(
+            "https://blog.fastforwardlabs.com/images/2018/02/circle_aa-1518730700478.png"
+          )
+
+        const xScale = d3.scaleLinear()
+            .domain(d3.extent(nodes, node => node.x))
+            .range([-400, 400])
+
+            const yScale = d3.scaleLinear()
+            .domain(d3.extent(nodes, node => node.y))
+            .range([-300, 300])
+
+        const colors = [];
+        const vertecies = [];
+        nodes.forEach((node) => {
+            const vertex = new THREE.Vector3(xScale(node.x), yScale(node.y), 0);
+            vertecies.push(vertex)
+            const color = new THREE.Color(defaultColor.colors[node.cluster % defaultColor.colors.length])
+            colors.push(color.r, color.g, color.b);
+        })
+        console.log(vertecies)
+        console.log(colors)
+        const pointsGeometry = new THREE.BufferGeometry()
+        pointsGeometry.setFromPoints(vertecies)
+        pointsGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+
+        const pointsMaterial = new THREE.PointsMaterial({
+            size: 8,
+            sizeAttenuation: false,
+            vertexColors: true,
+            map: circle_sprite_aa,
+            transparent: true,
+        });
+        const points = new THREE.Points(pointsGeometry, pointsMaterial)
+        scene.add(points)
         
-        // const sprite_setting = {
-        //     map: circle_sprite_aa,
-        //     transparent: true,
-        //     alphaTest: 0.5
-        // }
-
-        // const colors = [];
-        // const vertecies = [];
-        // nodes.forEach((node) => {
-        //     const vertex = new THREE.Vector3(node.x, node.y, 0);
-        //     vertecies.push(vertex)
-        //     const color = new THREE.Color(defaultColor[node.cluster])
-        //     colors.push(color);
-        // })
-        // const pointsGeometry = new THREE.BufferGeometry().setFromPoints(vertecies)
-        // pointsGeometry.color = colors;
-
-        // const pointsMaterial = new THREE.PointsMaterial({
-        //     size: 8,
-        //     sizeAttenuation: false,
-        //     vertexColors: true,
-        // });
-        // for (let setting in sprite_setting) {
-        //     pointsMaterial[setting] = sprite_setting[setting]
-        // }
-        // const points = new THREE.Points(pointsGeometry, pointsMaterial)
-        // scene.add(points)
-        
-
-        const geometry = new THREE.BoxGeometry();
-        const material = new THREE.MeshBasicMaterial({ color: 0xdd6666 });
-        const cube = new THREE.Mesh(geometry, material);
-        // cube.matrixAutoUpdate = false
-        scene.add(cube);
 
         function animate() {
             requestAnimationFrame( animate );
             renderer.render( scene, camera );
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
         }
         animate();
         setUpZoom();
