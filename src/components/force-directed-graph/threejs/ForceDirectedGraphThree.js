@@ -63,16 +63,23 @@ const ForceDirectedGraphWebgl = ({
 
     useEffect(() => {
         const mount = mountRef.current
+        let pointMaterial;
 
         // 1. create camera, scene, renderer
         cameraRef.current = new THREE.PerspectiveCamera(fov, aspect, near, far + 1);
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xcccccc);
-        rendererRef.current = new THREE.WebGLRenderer();
+        rendererRef.current = new THREE.WebGLRenderer({ 
+            antialias: true
+        });
         rendererRef.current.setSize(width, height);
         mount.appendChild(rendererRef.current.domElement)
 
         // 2. create zoom/pan handler
+        const minNodeSize = 1
+        const nodeSizeScale = d3.scaleLinear()
+            .domain([0.5, 10]) 
+            .range([4, 6]); // IMPORTANT: setup node size epansion rates
         const getZFromScale = (scale) => {
             let half_fov = fov / 2;
             let half_fov_radians = toRadians(half_fov);
@@ -85,8 +92,12 @@ const ForceDirectedGraphWebgl = ({
             let _x = -(d3_transform.x - width / 2) / scale;
             let _y = (d3_transform.y - height / 2) / scale;
             let _z = getZFromScale(scale);
+            if (pointMaterial) {
+                const size = nodeSizeScale(scale)
+                pointsRef.current.material.size = size < minNodeSize ? minNodeSize : size
+                // console.log(`scale: ${scale} size: ${pointsRef.current.material.size}`)
+            }
             cameraRef.current.position.set(_x, _y, _z);
-            // console.log(cameraRef.current.position)
         }
         d3ZoomRef.current = d3.zoom()
             .scaleExtent([getScaleFromZ(far), getScaleFromZ(near)])
@@ -100,7 +111,6 @@ const ForceDirectedGraphWebgl = ({
             const initialScale = getScaleFromZ(far);
             const initialTransform = d3.zoomIdentity.translate(width / 2, height / 2).scale(initialScale);
             d3ZoomRef.current.transform(view, initialTransform);
-            // cameraRef.current.position.set(0, 0, far)
         }
 
         // 3. create nodes
@@ -129,12 +139,13 @@ const ForceDirectedGraphWebgl = ({
             "https://fastforwardlabs.github.io/visualization_assets/circle-sprite.png"
         );
         const pointsMaterial = new THREE.PointsMaterial({
-            size: 6,
+            size: 4,
             sizeAttenuation: false,
             vertexColors: true,
             map: circle_sprite,
             transparent: true,
         });
+        pointsMaterial.needsUpdate = true
         pointsRef.current = new THREE.Points(pointGeo, pointsMaterial);
         pointsRef.current.geometry.attributes.position.needsUpdate = true;
         scene.add(pointsRef.current);
@@ -214,7 +225,7 @@ const ForceDirectedGraphWebgl = ({
             geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array([
                 c.r, c.g, c.b
             ]), 3))
-            const pointMaterial = new THREE.PointsMaterial({
+            pointMaterial = new THREE.PointsMaterial({
                 size: 12,
                 sizeAttenuation: false,
                 vertexColors: true,
