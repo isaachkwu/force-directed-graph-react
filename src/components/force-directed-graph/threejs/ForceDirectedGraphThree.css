@@ -1,0 +1,23 @@
+.buttonContainer {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.resetButton {
+  background-color: #555555;
+  transition: 0.2s;
+  opacity: 0.66;
+  border: none;
+  color: white;
+  padding: 10px 25px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+  margin: 6px 4px;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  opacity: 1;
+}

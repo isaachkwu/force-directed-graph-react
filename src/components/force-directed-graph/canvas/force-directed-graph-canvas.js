@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
-import defaultColor from '../data/colors-40.json'
+import defaultColor from '../../../data/colors-40.json'
 
 // workers
-import SimWorker from '../workers/force-simulation.worker'
+import SimWorker from '../../../workers/force-simulation.worker'
 
 // hooks
-import useWindowDimension from '../hooks/useWindowDimension';
+import useWindowDimension from '../../../hooks/useWindowDimension';
 
 const ForceDirectedGraphCanvas = ({
     nodes,
