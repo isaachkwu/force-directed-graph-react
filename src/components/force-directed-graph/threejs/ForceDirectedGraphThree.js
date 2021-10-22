@@ -7,6 +7,8 @@ import { select } from 'd3-selection';
 
 import Slider from '../../slider/Slider'
 
+import SimWorker from '../../../workers/force-simulation.worker'
+
 import defaultColors from '../../../data/colors-40.json'
 import useWindowDimension from '../../../hooks/useWindowDimension';
 
@@ -15,17 +17,24 @@ import './ForceDirectedGraphThree.css';
 
 const ForceDirectedGraphWebgl = ({
     nodes,
-    links
+    links,
+    simulated = false
 }) => {
     const { width, height } = useWindowDimension();
+
+    // selection
     const [selectedNode, setSelectedNode] = useState(null);
     const [mousePosition, setMousePosition] = useState(null);
     const [selectedNodeColor, setSelectedNodeColor] = useState(null);
 
+    // scaling
     const defaultControlValue = 50
-
     const [xScaleControl, setXScaleControl] = useState(defaultControlValue);
     const [yScaleControl, setYScaleControl] = useState(defaultControlValue);
+
+    // force simulation
+    const [loadingProgress, setLoadingProgress] = useState(0)
+    const [isCanvasReady, setIsCanvasReady] = useState(false)
 
     const onChangeXSlider = useCallback((value) => {
         setXScaleControl(value);
@@ -65,11 +74,25 @@ const ForceDirectedGraphWebgl = ({
         const mount = mountRef.current
         let pointMaterial;
 
+        const ticked = (data) => {
+            setIsCanvasReady(false);
+            setLoadingProgress(data.progress)
+        }
+
+        const ended = (data) => {
+            setIsCanvasReady(true);
+            simedNodes = data.nodes;
+            simedLinks = data.links;
+            animate();
+            setUpZoom();
+            setUpHover();
+        }
+        
         // 1. create camera, scene, renderer
         cameraRef.current = new THREE.PerspectiveCamera(fov, aspect, near, far + 1);
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xcccccc);
-        rendererRef.current = new THREE.WebGLRenderer({ 
+        rendererRef.current = new THREE.WebGLRenderer({
             antialias: true
         });
         rendererRef.current.setSize(width, height);
@@ -78,7 +101,7 @@ const ForceDirectedGraphWebgl = ({
         // 2. create zoom/pan handler
         const minNodeSize = 1
         const nodeSizeScale = d3.scaleLinear()
-            .domain([0.5, 10]) 
+            .domain([0.5, 10])
             .range([4, 6]); // IMPORTANT: setup node size epansion rates
         const getZFromScale = (scale) => {
             let half_fov = fov / 2;
@@ -95,7 +118,6 @@ const ForceDirectedGraphWebgl = ({
             if (pointMaterial) {
                 const size = nodeSizeScale(scale)
                 pointsRef.current.material.size = size < minNodeSize ? minNodeSize : size
-                // console.log(`scale: ${scale} size: ${pointsRef.current.material.size}`)
             }
             cameraRef.current.position.set(_x, _y, _z);
         }
@@ -255,15 +277,30 @@ const ForceDirectedGraphWebgl = ({
         }
 
         // 6. animate and apply zoom handler
-        function animate() {
+        const animate = () => {
             requestAnimationFrame(animate);
             rendererRef.current.render(scene, cameraRef.current);
         }
         if (WEBGL.isWebGLAvailable()) {
-            animate();
-            setUpZoom();
-            setUpHover();
+            if (!simulated) {
+                const simWorker = new SimWorker();
+                simWorker.postMessage({
+                    nodes, links, width, height
+                });
 
+                // worker receive message
+                simWorker.onmessage = event => {
+                    switch (event.data.type) {
+                        case "tick": return ticked(event.data);
+                        case "end": return ended(event.data);
+                        default: return
+                    }
+                }
+            } else {
+                animate();
+                setUpZoom();
+                setUpHover();
+            }
         } else {
             mount.appendChild(WEBGL.getWebGLErrorMessage());
         }
@@ -273,7 +310,7 @@ const ForceDirectedGraphWebgl = ({
             mount.removeChild(rendererRef.current.domElement);
         }
 
-    }, [nodes, links, height, width, aspect, getScaleFromZ])
+    }, [nodes, links, height, width, aspect, getScaleFromZ, simulated])
 
     useEffect(() => {
         if (pointsRef.current !== null && branchesRef.current !== null) {
@@ -338,7 +375,7 @@ const ForceDirectedGraphWebgl = ({
             ID: {selectedNode && selectedNode.id}
             <br />
             Number: {selectedNode && selectedNode.num}
-            <br/>
+            <br />
             <div style={{
                 color: selectedNode && selectedNode.cluster === '' ? 'white' : 'black',
                 backgroundColor: selectedNodeColor ? selectedNodeColor : 'white',
