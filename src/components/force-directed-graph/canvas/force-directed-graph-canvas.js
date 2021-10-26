@@ -28,7 +28,7 @@ const ForceDirectedGraphCanvas = ({
     const canvasRef = useRef(null);
     const { width, height } = useWindowDimension();
     const [loadingProgress, setLoadingProgress] = useState(0)
-    const [isCanvasReady, setIsCanvasReady] = useState(false)
+    const [isCanvasReady, setIsCanvasReady] = useState(true)
     const transform = useRef(d3.zoomIdentity)
 
     const fnColorCritiria = useCallback((d) => {

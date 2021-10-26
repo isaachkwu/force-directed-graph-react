@@ -27,9 +27,15 @@ function App() {
         isSimulated
         onlyRenderOnScreenElement // disable this to stop limited rendering
       /> */}
-      <ForceDirectedGraphWebgl 
+      {/* <ForceDirectedGraphWebgl 
         nodes={SimulatedNodes}
         links={SimulatedLinks}
+      /> */}
+      <ForceDirectedGraphWebgl 
+        isSimulated={false}
+        isDraggable={true}
+        nodes={BigTestData.nodes}
+        links={BigTestData.links}
       />
     </div>
   );
