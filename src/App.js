@@ -1,12 +1,12 @@
 import './App.css';
 // import ForceDirectedGraphSvg from './components/force-directed-graph-svg';
 import ForceDirectedGraphCanvas from './components/force-directed-graph/canvas/force-directed-graph-canvas';
-import ForceDirectedGraphWebgl from './components/force-directed-graph/threejs/ForceDirectedGraphThree';
+import ForceDirectedGraphThree2 from './components/force-directed-graph/threejs2/ForceDirectedGraphThree2';
 
 // import CalculatedNodes from './data/nodes.json';
 // import CalculatedLinks from './data/links.json';
 // import OriginalNodesAndLinks from './data/testDataCombined.json'
-import BigTestData from './data/raw/testData-10000.json'
+import BigTestData from './data/raw/testDataCombined.json'
 import SimulatedLinks from './data/simulated/links-50000-5000-30-2500.json'
 import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
@@ -31,7 +31,7 @@ function App() {
         nodes={SimulatedNodes}
         links={SimulatedLinks}
       /> */}
-      <ForceDirectedGraphWebgl 
+      <ForceDirectedGraphThree2
         isSimulated={false}
         isDraggable={true}
         nodes={BigTestData.nodes}

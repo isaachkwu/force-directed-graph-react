@@ -12,10 +12,10 @@ import SimWorker from '../../../workers/force-simulation.worker'
 import defaultColors from '../../../data/colors-40.json'
 import useWindowDimension from '../../../hooks/useWindowDimension';
 
-import './ForceDirectedGraphThree.css';
+import './ForceDirectedGraphThree2.css';
 
 
-const ForceDirectedGraphWebgl = ({
+const ForceDirectedGraphThree2 = ({
     nodes,
     links,
     isSimulated = false,
@@ -131,11 +131,11 @@ const ForceDirectedGraphWebgl = ({
             const xExtent = d3.extent(nodes, node => node.x);
             const yExtent = d3.extent(nodes, node => node.y);
             xScale = d3.scaleLinear()
-                // .domain([-300, 300])
-                // .range([-200, 200]);
+                .domain([-300, 300])
+                .range([-200, 200]);
             yScale = d3.scaleLinear()
-                // .domain([-300, 300])
-                // .range([-200, 200]);
+                .domain([-300, 300])
+                .range([-200, 200]);
             const vectors = nodes.map((node) => new THREE.Vector3(xScale(node.x), yScale(node.y), 0));
             const colors = [];
             for (const node of nodes) {
@@ -518,4 +518,4 @@ const styles = {
 }
 
 
-export default ForceDirectedGraphWebgl
+export default ForceDirectedGraphThree2
