@@ -203,7 +203,7 @@ const ForceDirectedGraphWebgl = ({
             setUpDrag = (simulation) => {
                 const drag = () => {
                     function dragsubject(event) {
-                        return selectedNode;
+                        return selectedNode ;
                     }
                   
                     function dragstarted(event) {
@@ -304,6 +304,7 @@ const ForceDirectedGraphWebgl = ({
             }
 
             const hideTooltip = () => {
+                selectedNode = null
                 setSelectedNode(null);
                 setSelectedNodeColor(null);
                 setMousePosition(null)

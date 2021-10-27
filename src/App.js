@@ -6,7 +6,7 @@ import ForceDirectedGraphWebgl from './components/force-directed-graph/threejs/F
 // import CalculatedNodes from './data/nodes.json';
 // import CalculatedLinks from './data/links.json';
 // import OriginalNodesAndLinks from './data/testDataCombined.json'
-import BigTestData from './data/raw/testDataCombined.json'
+import BigTestData from './data/raw/testData-10000.json'
 import SimulatedLinks from './data/simulated/links-50000-5000-30-2500.json'
 import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
