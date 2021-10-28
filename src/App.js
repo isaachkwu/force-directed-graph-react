@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import './App.css';
 // import ForceDirectedGraphSvg from './components/force-directed-graph-svg';
 import ForceDirectedGraphCanvas from './components/force-directed-graph/canvas/force-directed-graph-canvas';
@@ -11,6 +12,7 @@ import SimulatedLinks from './data/simulated/links-50000-5000-30-2500.json'
 import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
 function App() {
+  const [simulating, setSimulating] = useState(true)
   return (
     <div className="App">
       {/* <ForceDirectedGraphCanvas 
@@ -31,9 +33,14 @@ function App() {
         nodes={SimulatedNodes}
         links={SimulatedLinks}
       /> */}
+      <button style={{ position: 'fixed' }} onClick={() => {
+        setSimulating(!simulating)
+      }}>
+        toggleSimulation
+      </button>
       <ForceDirectedGraphThree2
-        isSimulated={false}
-        isDraggable={true}
+        enableSimulate={simulating}
+        enableDrag
         nodes={BigTestData.nodes}
         links={BigTestData.links}
       />

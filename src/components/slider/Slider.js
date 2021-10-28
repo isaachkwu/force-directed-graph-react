@@ -51,30 +51,30 @@ const Slider = ({
         </div>
     )
 
-    const renderVerticalSlider = () => (
-        <div className='column'>
-            <div className='yInnerSliderContainer'>
-                <input
-                    className='ySlider'
-                    type="range"
-                    min={min}
-                    max={max}
-                    value={range}
-                    onChange={handleChangeDebounce}
-                />
-                <span className='ySliderTitle'>{title}</span>
-            </div>
-            <button
-                className='resetButton'
-                onClick={reset}>
-                reset
-            </button>
-        </div>
-    )
+    // const renderVerticalSlider = () => (
+    //     <div className='column'>
+    //         <div className='yInnerSliderContainer'>
+    //             <input
+    //                 className='ySlider'
+    //                 type="range"
+    //                 min={min}
+    //                 max={max}
+    //                 value={range}
+    //                 onChange={handleChangeDebounce}
+    //             />
+    //             <span className='ySliderTitle'>{title}</span>
+    //         </div>
+    //         <button
+    //             className='resetButton'
+    //             onClick={reset}>
+    //             reset
+    //         </button>
+    //     </div>
+    // )
 
     return (
         <>
-            {orientation === 'vertical' ? renderVerticalSlider() : renderHorizontalSlider()}
+            {renderHorizontalSlider()}
         </>
     )
 }

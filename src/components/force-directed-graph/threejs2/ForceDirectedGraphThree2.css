@@ -1,5 +1,5 @@
-.buttonContainer {
-  position: absolute;
+.resetContainer {
+  position: fixed;
   top: 0;
   right: 0;
 }
@@ -20,4 +20,32 @@
 
 .resetButton:hover {
   opacity: 1;
+}
+
+.threeContainer {
+  margin: 0px;
+  padding: 0px;
+}
+
+.tooltipContainer {
+  background-color: white;
+  padding: 8px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.groupBox {
+  padding: 4px;
+}
+
+.sliderContainer {
+  position: fixed;
+  bottom: 8px;
+  left: 0px;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-evenly;
 }

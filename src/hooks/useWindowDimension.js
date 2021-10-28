@@ -8,7 +8,7 @@ export default function useWindowDimension() {
         let resizeTimer;
         const waitResize = () => {
             clearTimeout(resizeTimer)
-            resizeTimer = setTimeout(handleResize, 100)
+            resizeTimer = setTimeout(handleResize, 150)
         }
 
         const handleResize = () => {
