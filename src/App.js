@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 // import ForceDirectedGraphSvg from './components/force-directed-graph-svg';
 import ForceDirectedGraphCanvas from './components/force-directed-graph/canvas/force-directed-graph-canvas';
@@ -13,6 +13,14 @@ import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
 function App() {
   const [simulating, setSimulating] = useState(true)
+  // const [, setABC] = useState(true)
+  // useEffect(() => {
+  //   const id = setInterval(() => {
+  //     setABC(toggle => !toggle);
+  //   }, 3000);
+  //   return () => clearInterval(id);
+  // }, []);
+
   return (
     <div className="App">
       {/* <ForceDirectedGraphCanvas 
