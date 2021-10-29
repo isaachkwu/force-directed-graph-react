@@ -7,7 +7,7 @@ import Stats from 'three/examples/jsm/libs/stats.module';
 import Slider from '../../slider/Slider'
 import SimWorker from '../../../workers/force-simulation.worker'
 import defaultColors from '../../../data/colors-40.json'
-import useWindowDimension from '../../../hooks/useWindowDimension';
+import useComponentDimension from '../../../hooks/useComponentDimension';
 
 import './ForceDirectedGraphThree2.css';
 import { render } from '@testing-library/react';
@@ -20,8 +20,12 @@ const ForceDirectedGraphThree2 = ({
     enableDrag = false,
     xScaleRatio = 100, // used as a default value, or pass it dynamically to change it
     yScaleRatio = 100, // used as a default value, or pass it dynamically to change it
+    backgroundColor = '#cccccc',
+    nodeColorFunc,
+    linkColor = '#000000'
 }) => {
-    const { width, height } = useWindowDimension();
+    const containerRef = useRef(null);
+    const { width, height } = useComponentDimension(containerRef);
 
     const [isDragScreen, setIsDragScreen] = useState(true)
     const toggleDrag = () => {
@@ -30,8 +34,7 @@ const ForceDirectedGraphThree2 = ({
 
     // hover selection
     const [selectedNode, setSelectedNode] = useState(null);
-    const [mousePosition, setMousePosition] = useState(null);
-    const [selectedNodeColor, setSelectedNodeColor] = useState(null);
+    const [selectedNodePosition, setSelectedNodePosition] = useState(null);
 
     // one-time force simulation (only when drag disabled)
     const [loadingProgress, setLoadingProgress] = useState(0)
@@ -59,6 +62,7 @@ const ForceDirectedGraphThree2 = ({
     const d3NodesRef = useRef(null);
     const d3linksRef = useRef(null);
     const d3ZoomRef = useRef(null);
+    const d3DragRef = useRef(null);
     const simulationRef = useRef(null);
     // refs on three.js side
     const sceneRef = useRef(null);
@@ -66,6 +70,14 @@ const ForceDirectedGraphThree2 = ({
     const rendererRef = useRef(null);
     const nodes3dRef = useRef(null);
     const links3dRef = useRef(null);
+    const circleTextureLink = "https://fastforwardlabs.github.io/visualization_assets/circle-sprite.png"
+    const nodesConfig = (circleTexture) => ({
+        sizeAttenuation: false,
+        vertexColors: true,
+        map: circleTexture,
+        transparent: true,
+    })
+    const hoverContainerRef = useRef(null);
 
     // utility function
     const toRadians = (angle) => angle * (Math.PI / 180);
@@ -77,6 +89,16 @@ const ForceDirectedGraphThree2 = ({
         let scale = height / fov_height;
         return scale;
     }, [height])
+    const mouseToThree = useCallback((mouseX, mouseY) => (
+        new THREE.Vector2(
+            mouseX / width * 2 - 1,
+            -(mouseY / height) * 2 + 1
+        )
+    ), [height, width])
+    const getNodeColor = useCallback((node) => {
+        if (nodeColorFunc === null || nodeColorFunc === undefined) return '#ffffff'
+        return nodeColorFunc(node)
+    }, [nodeColorFunc])
 
     // Three.js camera, scene, renderer set-up with clean-ups
     useLayoutEffect(() => {
@@ -84,7 +106,7 @@ const ForceDirectedGraphThree2 = ({
         const mount = mountRef.current
         sceneRef.current = new THREE.Scene();
         cameraRef.current = new THREE.PerspectiveCamera(fov, 0, near, far + 1);
-        sceneRef.current.background = new THREE.Color(0xcccccc);
+        sceneRef.current.background = new THREE.Color(backgroundColor);
         rendererRef.current = new THREE.WebGLRenderer({ antialias: true, });
         mount.appendChild(rendererRef.current.domElement)
         return () => {
@@ -118,28 +140,20 @@ const ForceDirectedGraphThree2 = ({
         const nodesPosition = d3NodesRef.current.map((node) => new THREE.Vector3(node.x, node.y, 0));
         const nodesColor = [];
         for (const node of d3NodesRef.current) {
-            if (node.cluster === '') {
-                nodesColor.push(0, 0, 0) //black node is for nodes with no group assigned
-            } else {
-                const c = new THREE.Color(defaultColors.colors[node.cluster % defaultColors.colors.length])
-                nodesColor.push(c.r, c.g, c.b);
-            }
+            const color = new THREE.Color(
+                getNodeColor(node)
+            )
+            nodesColor.push(color.r, color.g, color.b);
         }
         nodesGeo.setFromPoints(nodesPosition)
         nodesGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nodesColor), 3))
-        const circle_sprite = new THREE.TextureLoader().load(
-            "https://fastforwardlabs.github.io/visualization_assets/circle-sprite.png"
-        );
         const nodesMaterial = new THREE.PointsMaterial({
-            size: 4,
-            sizeAttenuation: false,
-            vertexColors: true,
-            map: circle_sprite,
-            transparent: true,
+            ...nodesConfig(new THREE.TextureLoader().load(circleTextureLink)),
+            size: 4
         });
         nodes3dRef.current = new THREE.Points(nodesGeo, nodesMaterial);
         sceneRef.current.add(nodes3dRef.current);
-        const linksMaterial = new THREE.LineBasicMaterial({ color: 0x000000, });
+        const linksMaterial = new THREE.LineBasicMaterial({ color: linkColor, });
         const linksPosition = []
         d3linksRef.current.forEach((link) => {
             linksPosition.push(
@@ -199,11 +213,10 @@ const ForceDirectedGraphThree2 = ({
 
     // Zoom and pan
     useLayoutEffect(() => {
-        console.log("setUpzoom effect")
         const minNodeSize = 1
         const nodeSizeScale = d3.scaleLinear()
             .domain([0.5, 10])
-            .range([4, 30]); 
+            .range([4, 30]);
         const getZFromScale = (scale) => {
             let half_fov = fov / 2;
             let half_fov_radians = toRadians(half_fov);
@@ -221,15 +234,19 @@ const ForceDirectedGraphThree2 = ({
             cameraRef.current.position.set(_x, _y, _z);
         }
         if (d3ZoomRef.current === null) {
+            console.log("init setUpZoom effect")
             d3ZoomRef.current = d3.zoom()
-            .scaleExtent([getScaleFromZ(far), getScaleFromZ(near)])
-            .on('zoom', (event) => {
-                zoomHandler(event.transform);
-            });
+                .scaleExtent([getScaleFromZ(far), getScaleFromZ(near)])
+                .on('zoom', (event) => {
+                    zoomHandler(event.transform);
+                });
         } else {
-            d3ZoomRef.current.on("zoom", (event) => {
-                zoomHandler(event.transform);
-            });
+            console.log("update setUpZoom effect")
+            d3ZoomRef.current
+                .scaleExtent([getScaleFromZ(far), getScaleFromZ(near)])
+                .on("zoom", (event) => {
+                    zoomHandler(event.transform);
+                });
         }
         const view = d3.select(rendererRef.current.domElement)
         const initialScale = getScaleFromZ(far);
@@ -251,141 +268,129 @@ const ForceDirectedGraphThree2 = ({
         }
     }, [isDragScreen])
 
-    // useLayoutEffect(() => {
-    //     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
-    //         const raycaster = new THREE.Raycaster();
-    //         let selectedNode;
-    //         raycaster.params.Points.threshold = 6;
-    //         const mouseToThree = (mouseX, mouseY) => (
-    //             new THREE.Vector2(
-    //                 mouseX / width * 2 - 1,
-    //                 -(mouseY / height) * 2 + 1
-    //             )
-    //         )
-    //         setUpHover = () => {
-    //             d3.select(rendererRef.current.domElement)
-    //                 .on("mousemove", (event) => {
-    //                     const [mouseX, mouseY] = d3.pointer(event);
-    //                     const mousePosition = [mouseX, mouseY];
-    //                     checkIntersects(mousePosition);
-    //                 })
-    //                 .on("mouseleave", () => {
-    //                     removeHighlight()
-    //                     hideTooltip();
-    //                 })
-    //         }
-    //         setUpDrag = (simulation) => {
-    //             const drag = () => {
-    //                 function dragsubject(event) {
-    //                     return selectedNode ;
-    //                 }
-                  
-    //                 function dragstarted(event) {
-    //                   if (!event.active) simulation.alphaTarget(0.3).restart();
-    //                   event.subject.fx = event.subject.x;
-    //                   event.subject.fy = event.subject.y;
-    //                 }
-                    
-    //                 function dragged(event) {
-    //                     // intersection of plane is saved in planePoint variable
-    //                     // translate that point from three to d3 simulation scale
-    //                     let planePoint = new THREE.Vector3();
-    //                     const mouseVector = mouseToThree(...d3.pointer(event));
-    //                     // console.log(event)
-    //                     raycaster.setFromCamera(mouseVector, cameraRef.current);
-    //                     raycaster.ray.intersectPlane(plane, planePoint);
-    //                     const translatedX = xScale.invert(planePoint.x / pointsRef.current.scale.x)
-    //                     const translatedY = yScale.invert(planePoint.y / pointsRef.current.scale.y)
-    //                     // console.log(`planePoint: ${JSON.stringify(planePoint)}`)
-    //                     // console.log(pointsRef.current.scale.x, pointsRef.current.scale.y)
-    //                     // console.log(translatedX, translatedY)
-    //                     event.subject.fx = translatedX;
-    //                     event.subject.fy = translatedY;
-    //                 }
-                    
-    //                 function dragended(event) {
-    //                   if (!event.active) simulation.alphaTarget(0);
-    //                   event.subject.fx = null;
-    //                   event.subject.fy = null;
-    //                 }
-                    
-    //                 return d3.drag()
-    //                     .subject(dragsubject)
-    //                     .on("start", dragstarted)
-    //                     .on("drag", dragged)
-    //                     .on("end", dragended);
-    //               }
+    useLayoutEffect(() => {
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = 6;
 
-    //               d3.select(rendererRef.current.domElement).call(drag())
-
-    //               const checkIntersects = (mousePosition) => {
-    //             // console.log(mousePosition)
-    //             const mouseVector = mouseToThree(...mousePosition);
-    //             raycaster.setFromCamera(mouseVector, cameraRef.current);
-    //             const intersects = raycaster.intersectObject(pointsRef.current);
-    //             if (intersects[0]) {
-    //                 const sortedntersection = intersects.sort((a, b) => {
-    //                     if (a.distanceToRay < b.distanceToRay) {
-    //                         return -1
-    //                     }
-    //                     if (a.distanceToRay > b.distanceToRay) {
-    //                         return 1
-    //                     }
-    //                     return 0
-    //                 })
-    //                 // console.log(sortedntersection.map(e => e.distanceToRay))
-    //                 const firstIntersect = sortedntersection[0]
-    //                 selectedNode = nodes[firstIntersect.index];
-    //                 const scale = firstIntersect.object.scale
-    //                 // console.log(scale)
-    //                 highlightPoint(selectedNode, scale);
-    //                 showTooltip(mousePosition, selectedNode);
-    //             } else {
-    //                 removeHighlight();
-    //                 hideTooltip();
-    //             }
-    //         }
-    //         const hoverContainer = new THREE.Object3D();
-    //         scene.add(hoverContainer);
-    //         const highlightPoint = (node, scale) => {
-    //             removeHighlight();
-    //             const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xScale(node.x), yScale(node.y), 0)]);
-    //             const c = node.cluster === '' ? '#000000' : new THREE.Color(defaultColors.colors[node.cluster % defaultColors.colors.length])
-    //             geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array([
-    //                 c.r, c.g, c.b
-    //             ]), 3))
-    //             pointMaterial = new THREE.PointsMaterial({
-    //                 size: 12,
-    //                 sizeAttenuation: false,
-    //                 vertexColors: true,
-    //                 map: circle_sprite,
-    //                 transparent: true,
-    //             });
-    //             const point = new THREE.Points(geometry, pointMaterial);
-    //             point.scale.set(scale.x, scale.y, scale.z)
-    //             hoverContainer.add(point);
-    //         }
-
-    //         const removeHighlight = () => {
-    //             hoverContainer.remove(...hoverContainer.children)
-    //         }
-
-    //         const showTooltip = (mousePosition, node) => {
-    //             setSelectedNode(node);
-    //             const c = node.cluster === '' ? '#000000' : defaultColors.colors[node.cluster % defaultColors.colors.length]
-    //             setSelectedNodeColor(c);
-    //             setMousePosition(mousePosition)
-    //         }
-
-    //         const hideTooltip = () => {
-    //             selectedNode = null
-    //             setSelectedNode(null);
-    //             setSelectedNodeColor(null);
-    //             setMousePosition(null)
-    //         }
-    // })
+        d3.select(rendererRef.current.domElement)
+            .on("mousemove", (event) => {
+                const [mouseX, mouseY] = d3.pointer(event);
+                const mousePosition = [mouseX, mouseY];
+                const closestNode = findClosestNode(mousePosition);
+                if (closestNode !== null) {
+                    const node = d3NodesRef.current[closestNode.index];
+                    setSelectedNode(node);
+                    setSelectedNodePosition(mousePosition)
+                } else {
+                    setSelectedNode(null)
+                    setSelectedNodePosition(null)
+                }
+            })
+            .on("mouseleave", () => {
+                setSelectedNode(null)
+                setSelectedNodePosition(null)
+            })
+        const findClosestNode = (mousePosition) => {
+            const mouseThree = mouseToThree(...mousePosition);
+            raycaster.setFromCamera(mouseThree, cameraRef.current);
+            let intersects = raycaster.intersectObject(nodes3dRef.current);
+            if (intersects.length > 0) {
+                const closestNode = intersects.sort((a, b) => {
+                    if (a.distanceToRay < b.distanceToRay) return -1
+                    if (a.distanceToRay > b.distanceToRay) return 1
+                    return 0
+                })
+                return closestNode[0]
+            } else {
+                return null
+            }
+        }
+    }, [getNodeColor, mouseToThree, nodes])
 
     useLayoutEffect(() => {
+        console.log("init hover point container")
+        hoverContainerRef.current = new THREE.Object3D();
+        sceneRef.current.add(hoverContainerRef.current);
+    }, [])
+
+    useLayoutEffect(() => {
+        if (hoverContainerRef.current.children.length > 0) {
+            if (selectedNode !== null && selectedNodePosition !== null) {
+                console.log('moved node')
+                const pointPosition = hoverContainerRef.current.children[0].geometry.attributes.position.array;
+                pointPosition[0] = selectedNode.x;
+                pointPosition[1] = selectedNode.y;
+                hoverContainerRef.current.children[0].geometry.attributes.position.needsUpdate = true;
+                hoverContainerRef.current.children[0].geometry.computeBoundingBox()
+                hoverContainerRef.current.children[0].geometry.computeBoundingSphere()
+            } else {
+                console.log('removed node')
+                hoverContainerRef.current.remove(...hoverContainerRef.current.children)
+            }
+        } else {
+            if (selectedNode !== null && selectedNodePosition !== null) {
+                console.log('added node')
+                const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(selectedNode.x, selectedNode.y, 0)]);
+                const c = new THREE.Color(getNodeColor(selectedNode))
+                geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array([c.r, c.g, c.b]), 3))
+                const pointMaterial = new THREE.PointsMaterial({
+                    ...nodesConfig(new THREE.TextureLoader().load(circleTextureLink)),
+                    size: 12, // TODO: scale larger
+                });
+                const point = new THREE.Points(geometry, pointMaterial);
+                const scale = nodes3dRef.current.scale;
+                point.scale.set(scale.x, scale.y, scale.z);
+                hoverContainerRef.current.add(point);
+            }
+        }
+    }, [getNodeColor, selectedNode, selectedNodePosition])
+
+    // Drag
+    useLayoutEffect(() => {
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = 6;
+        function dragstarted(event) {
+            if (!event.active) simulationRef.current.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+            // intersection of plane is saved in planePoint variable
+            // translate that point from three to d3 simulation scale
+            let planePoint = new THREE.Vector3();
+            const mouseVector = mouseToThree(...d3.pointer(event));
+            raycaster.setFromCamera(mouseVector, cameraRef.current);
+            raycaster.ray.intersectPlane(plane, planePoint);
+            const translatedX = planePoint.x / nodes3dRef.current.scale.x
+            const translatedY = planePoint.y / nodes3dRef.current.scale.y
+            event.subject.fx = translatedX;
+            event.subject.fy = translatedY;
+        }
+
+        function dragended(event) {
+            if (!event.active) simulationRef.current.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+        d3DragRef.current = d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended);
+
+        d3.select(rendererRef.current.domElement).call(d3DragRef.current)
+    }, [mouseToThree])
+
+    useLayoutEffect(() => {
+        function dragsubject() {
+            return selectedNode;
+        }
+        d3DragRef.current.subject(dragsubject)
+    }, [selectedNode])
+
+    useLayoutEffect(() => {
+        console.log('update scales effect')
         if (nodes3dRef.current !== null && links3dRef.current !== null) {
             const xRatio = xScaleControl / 100;
             const yRatio = yScaleControl / 100;
@@ -413,7 +418,7 @@ const ForceDirectedGraphThree2 = ({
     const tooltipWidth = 120
     const tooltipXOffset = -tooltipWidth / 2;
     const tooltipYOffset = 30
-    return <>
+    return <div ref={containerRef} className="container">
         {!isCanvasReady &&
             <h1>Loading... {(loadingProgress * 100).toFixed(2)}</h1>
         }
@@ -449,8 +454,8 @@ const ForceDirectedGraphThree2 = ({
             style={{
                 display: selectedNode ? "flex" : "none",
                 position: "absolute",
-                left: mousePosition ? mousePosition[0] + tooltipXOffset : 0,
-                top: mousePosition ? mousePosition[1] + tooltipYOffset : 0,
+                left: selectedNodePosition ? selectedNodePosition[0] + tooltipXOffset : 0,
+                top: selectedNodePosition ? selectedNodePosition[1] + tooltipYOffset : 0,
             }}
         >
             ID: {selectedNode && selectedNode.id}
@@ -459,8 +464,8 @@ const ForceDirectedGraphThree2 = ({
             <br />
             <div className="groupBox"
                 style={{
-                    color: selectedNode && selectedNode.cluster === '' ? 'white' : 'black',
-                    backgroundColor: selectedNodeColor ? selectedNodeColor : 'white',
+                    color: 'black',
+                    backgroundColor: getNodeColor(selectedNode),
                 }}
             >
                 Group: {selectedNode && selectedNode.cluster}
@@ -471,7 +476,7 @@ const ForceDirectedGraphThree2 = ({
             className="threeContainer"
             ref={mountRef}
         />
-    </>
+    </div>
 }
 
 export default ForceDirectedGraphThree2

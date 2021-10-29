@@ -203,7 +203,7 @@ const ForceDirectedGraphWebgl = ({
             setUpDrag = (simulation) => {
                 const drag = () => {
                     function dragsubject(event) {
-                        return selectedNode ;
+                        return selectedNode;
                     }
                   
                     function dragstarted(event) {

@@ -7,7 +7,7 @@ import ForceDirectedGraphThree2 from './components/force-directed-graph/threejs2
 // import CalculatedNodes from './data/nodes.json';
 // import CalculatedLinks from './data/links.json';
 // import OriginalNodesAndLinks from './data/testDataCombined.json'
-import BigTestData from './data/raw/testDataCombined.json'
+import BigTestData from './data/raw/testData-10000-5000-30-500.json'
 import SimulatedLinks from './data/simulated/links-50000-5000-30-2500.json'
 import SimulatedNodes from './data/simulated/nodes-50000-5000-30-2500.json'
 
@@ -41,17 +41,14 @@ function App() {
         nodes={SimulatedNodes}
         links={SimulatedLinks}
       /> */}
-      <button style={{ position: 'fixed' }} onClick={() => {
-        setSimulating(!simulating)
-      }}>
-        toggleSimulation
-      </button>
-      <ForceDirectedGraphThree2
-        enableSimulate={simulating}
-        enableDrag
-        nodes={BigTestData.nodes}
-        links={BigTestData.links}
-      />
+      <div className="half">
+        <ForceDirectedGraphThree2
+          enableSimulate={simulating}
+          enableDrag
+          nodes={BigTestData.nodes}
+          links={BigTestData.links}
+        />
+      </div>
     </div>
   );
 }
