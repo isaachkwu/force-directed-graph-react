@@ -27,10 +27,10 @@ const ForceDirectedGraphThree2 = ({
     const containerRef = useRef(null);
     const { width, height } = useComponentDimension(containerRef);
 
-    const [isDragScreen, setIsDragScreen] = useState(true)
-    const toggleDrag = () => {
-        setIsDragScreen(!isDragScreen)
-    }
+    // const [isDragScreen, setIsDragScreen] = useState(true)
+    // const toggleDrag = () => {
+    //     setIsDragScreen(!isDragScreen)
+    // }
 
     // hover selection
     const [selectedNode, setSelectedNode] = useState(null);
@@ -211,6 +211,52 @@ const ForceDirectedGraphThree2 = ({
         rendererRef.current.setSize(width, height);
     }, [width, height, aspect])
 
+    // Drag
+    useLayoutEffect(() => {
+        console.log('init d3 drag')
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = 6;
+        function dragstarted(event) {
+            if (!event.active) simulationRef.current.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+            // intersection of plane is saved in planePoint variable
+            // translate that point from three to d3 simulation scale
+            let planePoint = new THREE.Vector3();
+            const mouseVector = mouseToThree(...d3.pointer(event));
+            raycaster.setFromCamera(mouseVector, cameraRef.current);
+            raycaster.ray.intersectPlane(plane, planePoint);
+            const translatedX = planePoint.x / nodes3dRef.current.scale.x
+            const translatedY = planePoint.y / nodes3dRef.current.scale.y
+            event.subject.fx = translatedX;
+            event.subject.fy = translatedY;
+        }
+
+        function dragended(event) {
+            if (!event.active) simulationRef.current.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+        d3DragRef.current = d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended);
+
+        d3.select(rendererRef.current.domElement).call(d3DragRef.current)
+    }, [mouseToThree])
+
+    useLayoutEffect(() => {
+        console.log('update drag subject')
+        function dragsubject() {
+            return selectedNode;
+        }
+        d3DragRef.current.subject(dragsubject)
+    }, [selectedNode])
+
     // Zoom and pan
     useLayoutEffect(() => {
         const minNodeSize = 1
@@ -252,22 +298,23 @@ const ForceDirectedGraphThree2 = ({
         const initialScale = getScaleFromZ(far);
         const initialTransform = d3.zoomIdentity.translate(width / 2, height / 2).scale(initialScale);
         d3ZoomRef.current.transform(view, initialTransform);
+        // d3.select(rendererRef.current.domElement).on("mousedown.zoom", null);
+        d3.select(rendererRef.current.domElement).call(d3ZoomRef.current)
         return () => {
             d3ZoomRef.current.on("zoom", null)
         }
     }, [getScaleFromZ, height, width])
 
-    useLayoutEffect(() => {
-        console.log("toggle drag screen effect")
-        if (isDragScreen === false) {
-            d3.select(rendererRef.current.domElement).on("mousedown.zoom", null);
-            // TODO: enable node drag
-        } else {
-            d3.select(rendererRef.current.domElement).call(d3ZoomRef.current)
-            // TODO: disable node drag
-        }
-    }, [isDragScreen])
+    // useLayoutEffect(() => {
+    //     console.log("toggle drag screen effect")
+    //     if (isDragScreen === false) {
+    //         d3.select(rendererRef.current.domElement).on("mousedown.zoom", null);
+    //     } else {
+        //     d3.select(rendererRef.current.domElement).call(d3ZoomRef.current)
+    //     }
+    // }, [isDragScreen])
 
+    // hover
     useLayoutEffect(() => {
         const raycaster = new THREE.Raycaster();
         raycaster.params.Points.threshold = 6;
@@ -345,50 +392,6 @@ const ForceDirectedGraphThree2 = ({
         }
     }, [getNodeColor, selectedNode, selectedNodePosition])
 
-    // Drag
-    useLayoutEffect(() => {
-        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
-        const raycaster = new THREE.Raycaster();
-        raycaster.params.Points.threshold = 6;
-        function dragstarted(event) {
-            if (!event.active) simulationRef.current.alphaTarget(0.3).restart();
-            event.subject.fx = event.subject.x;
-            event.subject.fy = event.subject.y;
-        }
-
-        function dragged(event) {
-            // intersection of plane is saved in planePoint variable
-            // translate that point from three to d3 simulation scale
-            let planePoint = new THREE.Vector3();
-            const mouseVector = mouseToThree(...d3.pointer(event));
-            raycaster.setFromCamera(mouseVector, cameraRef.current);
-            raycaster.ray.intersectPlane(plane, planePoint);
-            const translatedX = planePoint.x / nodes3dRef.current.scale.x
-            const translatedY = planePoint.y / nodes3dRef.current.scale.y
-            event.subject.fx = translatedX;
-            event.subject.fy = translatedY;
-        }
-
-        function dragended(event) {
-            if (!event.active) simulationRef.current.alphaTarget(0);
-            event.subject.fx = null;
-            event.subject.fy = null;
-        }
-        d3DragRef.current = d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended);
-
-        d3.select(rendererRef.current.domElement).call(d3DragRef.current)
-    }, [mouseToThree])
-
-    useLayoutEffect(() => {
-        function dragsubject() {
-            return selectedNode;
-        }
-        d3DragRef.current.subject(dragsubject)
-    }, [selectedNode])
-
     useLayoutEffect(() => {
         console.log('update scales effect')
         if (nodes3dRef.current !== null && links3dRef.current !== null) {
@@ -444,11 +447,11 @@ const ForceDirectedGraphThree2 = ({
                 onClick={resetCamera}>
                 Reset camera
             </button>
-            <button
+            {/* <button
                 className='button'
                 onClick={toggleDrag}>
                 Toggle drag {isDragScreen === true ? '(screen)' : '(node)'}
-            </button>
+            </button> */}
         </div>
         <div className="tooltipContainer"
             style={{
