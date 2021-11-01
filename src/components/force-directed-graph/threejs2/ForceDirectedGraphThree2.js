@@ -113,7 +113,7 @@ const ForceDirectedGraphThree2 = ({
             // clean up
             mount.removeChild(rendererRef.current.domElement);
         }
-    }, [])
+    }, [backgroundColor])
 
     useLayoutEffect(() => {
         console.log("simulation init")
@@ -163,7 +163,7 @@ const ForceDirectedGraphThree2 = ({
         const linksGeo = new THREE.BufferGeometry().setFromPoints(linksPosition);
         links3dRef.current = new THREE.LineSegments(linksGeo, linksMaterial);
         sceneRef.current.add(links3dRef.current)
-    }, [])
+    }, [getNodeColor, linkColor])
 
     useLayoutEffect(() => {
         console.log("setup animation loop")
